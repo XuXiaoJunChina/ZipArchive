@@ -6,7 +6,7 @@
 //  Copyright (c) 2015 ZipArchive. All rights reserved.
 //
 
-#import "Main.h"
+#import "ZIPMain.h"
 #import "zip.h"
 #import "zlib.h"
 #import "zconf.h"
@@ -14,14 +14,14 @@
 
 #define CHUNK 16384
 
-@interface Main ()
+@interface ZIPMain ()
 
 + (NSDate *)dateWithMicrosoftDOSFormat:(UInt32)microsoftDOSDateTime;
 
 @end
 
 
-@implementation Main {
+@implementation ZIPMain {
     NSString *_path;
     NSString *_fileName;
     zipFile _zip;
@@ -449,7 +449,7 @@
 + (BOOL)createZipFileAtPath:(NSString *)path
            withFilesAtPaths:(NSArray *)paths {
     BOOL success = NO;
-    Main *zipArchive = [[Main alloc] initWithPath:path];
+    ZIPMain *zipArchive = [[ZIPMain alloc] initWithPath:path];
     
     if ([zipArchive open]) {
         for (NSString *filePath in paths) {
@@ -472,7 +472,7 @@
         keepParentDirectory:(BOOL)keepParentDirectory {
     BOOL success = NO;
     NSFileManager *fileManager = nil;
-    Main *zipArchive = [[Main alloc] initWithPath:path];
+    ZIPMain *zipArchive = [[ZIPMain alloc] initWithPath:path];
     
     if ([zipArchive open]) {
         // Use a local file manager (queue/thread compatibility)
@@ -518,7 +518,7 @@
 
 - (BOOL)open {
     NSAssert((NULL == _zip), @"Attempting to open an archive which has already been opened.");
-    _zip = zipOpen([_path UTF8String], APPEND_STATUS_CREATE);
+    _zip = zipOpen_2([_path UTF8String], APPEND_STATUS_CREATE);
     
     return (NULL != _zip);
 }
@@ -567,9 +567,9 @@
     }
     
     unsigned int len = 0;
-    zipOpenNewFileInZip(_zip, [[folderName stringByAppendingString:@"/"] UTF8String], &zipInformation, NULL, 0, NULL, 0, NULL, Z_DEFLATED, Z_NO_COMPRESSION);
-    zipWriteInFileInZip(_zip, &len, 0);
-    zipCloseFileInZip(_zip);
+    zipOpenNewFileInZip_2(_zip, [[folderName stringByAppendingString:@"/"] UTF8String], &zipInformation, NULL, 0, NULL, 0, NULL, Z_DEFLATED, Z_NO_COMPRESSION);
+    zipWriteInFileInZip_2(_zip, &len, 0);
+    zipCloseFileInZip_2(_zip);
     
     return YES;
 }
@@ -617,16 +617,16 @@
         }
     }
     
-    zipOpenNewFileInZip(_zip, aFileName, &zipInformation, NULL, 0, NULL, 0, NULL, Z_DEFLATED, Z_DEFAULT_COMPRESSION);
+    zipOpenNewFileInZip_2(_zip, aFileName, &zipInformation, NULL, 0, NULL, 0, NULL, Z_DEFLATED, Z_DEFAULT_COMPRESSION);
     void *buffer = malloc(CHUNK);
     unsigned int len = 0;
     
     while (!feof(input)) {
         len = (unsigned int) fread(buffer, 1, CHUNK, input);
-        zipWriteInFileInZip(_zip, buffer, len);
+        zipWriteInFileInZip_2(_zip, buffer, len);
     }
     
-    zipCloseFileInZip(_zip);
+    zipCloseFileInZip_2(_zip);
     free(buffer);
 
     return YES;
@@ -643,16 +643,16 @@
     
     zip_fileinfo zipInformation = {{0,0,0,0,0,0},0,0,0};
     [self zipInformation:&zipInformation setDate:[NSDate date]];
-    zipOpenNewFileInZip(_zip, [fileName UTF8String], &zipInformation, NULL, 0, NULL, 0, NULL, Z_DEFLATED, Z_DEFAULT_COMPRESSION);
-    zipWriteInFileInZip(_zip, data.bytes, (unsigned int)data.length);
-    zipCloseFileInZip(_zip);
+    zipOpenNewFileInZip_2(_zip, [fileName UTF8String], &zipInformation, NULL, 0, NULL, 0, NULL, Z_DEFLATED, Z_DEFAULT_COMPRESSION);
+    zipWriteInFileInZip_2(_zip, data.bytes, (unsigned int)data.length);
+    zipCloseFileInZip_2(_zip);
     
     return YES;
 }
 
 - (BOOL)close {
     NSAssert((NULL != _zip), @"[ZipArchive] Attempting to close an archive that has never been opened.");
-    zipClose(_zip, NULL);
+    zipClose_2(_zip, NULL);
     
     return YES;
 }
