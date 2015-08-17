@@ -68,6 +68,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+// Matt Connolly 2013-09-12: this was defined in minizip 1.1.
+// @see http://www.winimage.com/zLibDll/minizip.html
+// Defining it defeats the ability to unzip password protected zip files, so this
+// is commented out so that existing tests pass.
+
 //#ifndef NOUNCRYPT
 //        #define NOUNCRYPT
 //#endif
@@ -1038,7 +1043,7 @@ local int unz64local_GetCurrentFileInfoInternal (unzFile file,
             /* ZIP64 extra fields */
             if (headerId == 0x0001)
             {
-                                                        uLong uLZip64;
+                                                        uLong uL;
 
                                                                 if(file_info.uncompressed_size == (ZPOS64_T)(unsigned long)-1)
                                                                 {
@@ -1062,7 +1067,7 @@ local int unz64local_GetCurrentFileInfoInternal (unzFile file,
                                                                 if(file_info.disk_num_start == (unsigned long)-1)
                                                                 {
                                                                         /* Disk Start Number */
-                                                                        if (unz64local_getLong(&s->z_filefunc, s->filestream,&uLZip64) != UNZ_OK)
+                                                                        if (unz64local_getLong(&s->z_filefunc, s->filestream,&uL) != UNZ_OK)
                                                                                 err=UNZ_ERRNO;
                                                                 }
 
@@ -1091,11 +1096,7 @@ local int unz64local_GetCurrentFileInfoInternal (unzFile file,
         if (lSeek!=0)
         {
             if (ZSEEK64(s->z_filefunc, s->filestream,lSeek,ZLIB_FILEFUNC_SEEK_CUR)==0)
-			{
-#ifndef __clang_analyzer__
                 lSeek=0;
-#endif
-			}
             else
                 err=UNZ_ERRNO;
         }
@@ -1103,14 +1104,10 @@ local int unz64local_GetCurrentFileInfoInternal (unzFile file,
         if ((file_info.size_file_comment>0) && (commentBufferSize>0))
             if (ZREAD64(s->z_filefunc, s->filestream,szComment,uSizeRead)!=uSizeRead)
                 err=UNZ_ERRNO;
-#ifndef __clang_analyzer__
         lSeek+=file_info.size_file_comment - uSizeRead;
-#endif
     }
-#ifndef __clang_analyzer__
     else
         lSeek+=file_info.size_file_comment;
-#endif
 
 
     if ((err==UNZ_OK) && (pfile_info!=NULL))
@@ -1514,7 +1511,6 @@ extern int ZEXPORT unzOpenCurrentFile3 (unzFile file, int* method,
     pfile_in_zip_read_info->size_local_extrafield = size_local_extrafield;
     pfile_in_zip_read_info->pos_local_extrafield=0;
     pfile_in_zip_read_info->raw=raw;
-    pfile_in_zip_read_info->byte_before_the_zipfile = 0;
 
     if (pfile_in_zip_read_info->read_buffer==NULL)
     {
@@ -1543,11 +1539,8 @@ extern int ZEXPORT unzOpenCurrentFile3 (unzFile file, int* method,
         (s->cur_file_info.compression_method!=Z_BZIP2ED) &&
 /* #endif */
         (s->cur_file_info.compression_method!=Z_DEFLATED))
-	{
-#ifndef __clang_analyzer__
+
         err=UNZ_BADZIPFILE;
-#endif
-	}
 
     pfile_in_zip_read_info->crc32_wait=s->cur_file_info.crc;
     pfile_in_zip_read_info->crc32=0;
@@ -1628,7 +1621,7 @@ extern int ZEXPORT unzOpenCurrentFile3 (unzFile file, int* method,
     if (password != NULL)
     {
         int i;
-        s->pcrc_32_tab = (const unsigned long*)get_crc_table();
+        s->pcrc_32_tab = get_crc_table();
         init_keys(password,s->keys,s->pcrc_32_tab);
         if (ZSEEK64(s->z_filefunc, s->filestream,
                   s->pfile_in_zip_read->pos_in_zipfile +
@@ -1708,8 +1701,7 @@ extern int ZEXPORT unzReadCurrentFile  (unzFile file, voidp buf, unsigned len)
         return UNZ_PARAMERROR;
 
 
-    if (pfile_in_zip_read_info->read_buffer == NULL)
-        return UNZ_END_OF_LIST_OF_FILE;
+    if (pfile_in_zip_read_info->read_buffer == NULL)        return UNZ_END_OF_LIST_OF_FILE;
     if (len==0)
         return 0;
 
@@ -1717,24 +1709,10 @@ extern int ZEXPORT unzReadCurrentFile  (unzFile file, voidp buf, unsigned len)
 
     pfile_in_zip_read_info->stream.avail_out = (uInt)len;
 
-    // NOTE:
-    // This bit of code seems to try to set the amount of space in the output buffer based on the
-    // value stored in the headers stored in the .zip file. However, if those values are incorrect
-    // it may result in a loss of data when uncompresssing that file. The compressed data is still
-    // legit and will deflate without knowing the uncompressed code so this tidbit is unnecessary and
-    // may cause issues for some .zip files.
-    //
-    // It's removed in here to fix those issues.
-    //
-    // See: https://github.com/samsoffes/ssziparchive/issues/16
-    //
-    
-    /*
     if ((len>pfile_in_zip_read_info->rest_read_uncompressed) &&
         (!(pfile_in_zip_read_info->raw)))
         pfile_in_zip_read_info->stream.avail_out =
             (uInt)pfile_in_zip_read_info->rest_read_uncompressed;
-     */
 
     if ((len>pfile_in_zip_read_info->rest_read_compressed+
            pfile_in_zip_read_info->stream.avail_in) &&
